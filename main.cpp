@@ -16,13 +16,15 @@ struct Status
     unsigned long SwapTotal = 0; // kB
     unsigned long SwapFree = 0; // kB
     unsigned long Uptime = 0; // Seconds
+    unsigned long NetworkIn = 0; // Bytes
+    unsigned long NetworkOut = 0; // Bytes
     unsigned long CoreCount = 0;
     std::vector<unsigned long> CoreUsage; // Millipercent
 };
 
 struct CpuUsage
 {
-    unsigned long idle;
+    unsigned long used;
     unsigned long total;
 };
 
@@ -49,19 +51,17 @@ std::vector<CpuUsage> getCoreUsage()
         if(!line.starts_with("cpu"))
             break;
 
-        std::vector<int> vect;
-        int value;
-        std::string cpuID;
-        std::stringstream ss(line); 
-        ss >> cpuID;
-        while(ss >> value)
-            vect.push_back (value); 
+        unsigned long long int user, unice, usystem, idle, iowait, irq, softirq, guest;
+        int nb_read = sscanf (line.c_str(), "%*s %llu %llu %llu %llu %llu %llu %llu %*u %llu",
+                          &user, &unice, &usystem, &idle, &iowait, &irq, &softirq, &guest);
+        if (nb_read <= 4) iowait = 0;
+        if (nb_read <= 5) irq = 0;
+        if (nb_read <= 6) softirq = 0;
+        if (nb_read <= 7) guest = 0;
 
-        unsigned long idle = vect[3];
-        unsigned long total = 0;
-        for(unsigned long val : vect)
-            total += val;
-        values.push_back({idle, total});
+        unsigned long used = user + unice + usystem + irq + softirq + guest;
+        unsigned long total = used + idle + iowait;
+        values.push_back({used, total});
     }
     return values;
 }
@@ -72,7 +72,25 @@ int main()
     std::vector<CpuUsage> prevCpuUsage = getCoreUsage();
     data.CoreUsage.resize(prevCpuUsage.size());
     data.CoreCount = prevCpuUsage.size();
-    sleep(2);
+
+    // current network usage
+    unsigned long prevIn = 0;
+    unsigned long prevOut = 0;
+    file.open("/proc/net/dev");
+    content.assign((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+    file.close();
+    lines = strToLines(content);
+    lines.erase(lines.begin());
+    lines.erase(lines.begin());
+
+    for(std::string line : lines)
+    {
+        unsigned long in, out;
+        sscanf(line.c_str(), "%*s %lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %lld %*lld", &in, &out);
+        prevIn += in;
+        prevOut += out;
+    }
+    sleep(1);
 
     while(true)
     {
@@ -83,11 +101,9 @@ int main()
 
         for(int i = 0; i < currentCpuUsage.size(); i++)
         {
-            int deltaIdle = currentCpuUsage[i].idle - prevCpuUsage[i].idle;
+            int deltaUsed = currentCpuUsage[i].used - prevCpuUsage[i].used;
             int deltaTotal = currentCpuUsage[i].total - prevCpuUsage[i].total;
-            data.CoreUsage[i] = (1.0f - ((double)deltaIdle / deltaTotal)) * 100000;
-            std::cout << "Core " << i << " idle: " << deltaIdle << " total: " << deltaTotal << " percent: " << data.CoreUsage[i] / 1000.0f << "\r\n";
-            
+            data.CoreUsage[i] = ((double)deltaUsed / deltaTotal) * 100000;            
         }
 
         prevCpuUsage = currentCpuUsage;
@@ -111,6 +127,33 @@ int main()
         file.close();
         sscanf(content.c_str(), "%d %*d", &data.Uptime);
 
-        sleep(2);
+        // network usage
+
+        file.open("/proc/net/dev");
+        content.assign((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+        file.close();
+        lines = strToLines(content);
+        lines.erase(lines.begin());
+        lines.erase(lines.begin());
+
+        unsigned long inBytes = 0, outBytes = 0;
+        for(std::string line : lines)
+        {
+            unsigned long in, out;
+            sscanf(line.c_str(), "%*s %lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %lld %*lld", &in, &out);
+            inBytes += in;
+            outBytes += out;
+        }
+
+        data.NetworkIn = inBytes - prevIn;
+        data.NetworkOut = outBytes - prevOut;
+        prevIn = inBytes;
+        prevOut = outBytes;
+
+        std::cout << "networkout: " << data.NetworkOut << " network in: " << data.NetworkIn << "\r\n";
+
+        // Sleep
+
+        sleep(1);
     }
 }
