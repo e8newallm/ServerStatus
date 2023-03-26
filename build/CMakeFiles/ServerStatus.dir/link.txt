@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/ServerStatus.dir/main.cpp.o -o bin/ServerStatus 

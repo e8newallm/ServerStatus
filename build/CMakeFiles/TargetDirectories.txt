@@ -1,3 +1,0 @@
-/home/matt-dev/Code/ServerStatus/build/CMakeFiles/ServerStatus.dir
-/home/matt-dev/Code/ServerStatus/build/CMakeFiles/edit_cache.dir
-/home/matt-dev/Code/ServerStatus/build/CMakeFiles/rebuild_cache.dir
