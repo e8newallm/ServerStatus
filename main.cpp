@@ -6,6 +6,7 @@
 #include <fstream>
 #include <stdio.h>
 #include <cstdint>
+#include <iomanip>
 
 #include "status.h"
 
@@ -66,10 +67,11 @@ int main()
 
     // previous network usage
     uint64_t prevIn = 0, prevOut = 0;
-    sleep(1);
 
     while(true)
     {
+        sleep(1);
+
         //stat (CPU usage)
 
         data.CoreUsage.clear();
@@ -79,9 +81,8 @@ int main()
         {
             int deltaUsed = currentCpuUsage[i].used - prevCpuUsage[i].used;
             int deltaTotal = currentCpuUsage[i].total - prevCpuUsage[i].total;
-            data.CoreUsage[i] = ((double)deltaUsed / deltaTotal) * 100000;            
+            data.CoreUsage.push_back(((double)deltaUsed / deltaTotal) * 100000);            
         }
-
         prevCpuUsage = currentCpuUsage;
 
         //meminfo
@@ -112,10 +113,10 @@ int main()
         lines.erase(lines.begin());
         lines.erase(lines.begin());
 
-        uuint64_t inBytes = 0, outBytes = 0;
+        uint64_t inBytes = 0, outBytes = 0;
         for(std::string line : lines)
         {
-            uuint64_t in, out;
+            uint64_t in, out;
             sscanf(line.c_str(), "%*s %lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %lld %*lld", &in, &out);
             inBytes += in;
             outBytes += out;
@@ -125,8 +126,6 @@ int main()
         data.NetworkOut = outBytes - prevOut;
         prevIn = inBytes;
         prevOut = outBytes;
-
-        std::cout << "networkout: " << data.NetworkOut << " network in: " << data.NetworkIn << "\r\n";
 
         // Drive usage
 
@@ -138,6 +137,8 @@ int main()
             content += buffer;
         }
         lines = strToLines(content);
+        data.DriveCount = 0;
+        data.Drives.clear();
         for(std::string line : lines)
         {
             DriveUsage newPart;
@@ -145,11 +146,16 @@ int main()
             sscanf(line.c_str(), "%s %lld %lld %*lld %*s %s", &location, &newPart.size, &newPart.used, &name);
             newPart.location += location;
             newPart.name += name;
-            //data.Drives.push_back(newPart);
+            data.Drives.push_back(newPart);
+            data.DriveCount++;
         }
-
-        // Sleep
-
-        sleep(1);
+        data.print();
+        std::vector<uint8_t> test = data.serialise();
+        std::cout << "data: \r\n";
+        for(uint8_t byte : test)
+        {
+            std::cout << std::hex << std::setw(2) << std::setfill('0') << (uint16_t)byte << " ";
+        }
+        std::cout << std::dec << "\r\n\r\n";
     }
 }
