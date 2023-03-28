@@ -12,9 +12,8 @@ struct DriveUsage
 
 class Status
 {
-    const uint64_t identifier = 0xFFBB774499DD2200;
-    const uint64_t identifierRev = 0x0022DD994477BBFF;
     public:
+  const uint64_t identifier = 0xFFBB774499DD2255;
         uint64_t MemTotal = 0; // kB
         uint64_t MemFree = 0; // kB
         uint64_t SwapTotal = 0; // kB
@@ -26,6 +25,7 @@ class Status
         uint64_t CoreCount = 0;
         std::vector<DriveUsage> Drives;
         uint64_t DriveCount;
+  const uint64_t identifierRev = 0x5522DD994477BBFF;
 
         std::vector<uint8_t> serialise();
         void deserialise(std::vector<uint8_t> data);

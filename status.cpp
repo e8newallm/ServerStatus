@@ -16,9 +16,9 @@ void pushLong(std::vector<uint8_t>& vector, uint64_t value)
 
 uint64_t popLong(std::vector<uint8_t>& vector)
 {
-    uint8_t* addr = &vector.back() - 7;
-    uint64_t value = (addr[0] << 56) + (addr[1] << 48) + (addr[2] << 40) + (addr[3] << 32) + 
-                     (addr[4] << 24) + (addr[5] << 16) + (addr[6] <<  8) + addr[7];
+    uint8_t* addr = (&vector.back()) - 7;
+    uint64_t value = ((uint64_t)addr[0] << 56) + ((uint64_t)addr[1] << 48) + ((uint64_t)addr[2] << 40) + ((uint64_t)addr[3] << 32) + 
+                     ((uint64_t)addr[4] << 24) + ((uint64_t)addr[5] << 16) + ((uint64_t)addr[6] <<  8) + (uint64_t)addr[7];
     vector.resize(vector.size() - 8);
     return value;
 }
@@ -58,19 +58,21 @@ std::vector<uint8_t> Status::serialise()
     pushLong(data, Uptime);
     pushLong(data, NetworkIn);
     pushLong(data, NetworkOut);
-    pushLong(data, CoreCount);
     for(uint64_t core : CoreUsage)
     {
         pushLong(data, core);
     }
-    pushLong(data, DriveCount);
+    pushLong(data, CoreCount);
     for(DriveUsage drive : Drives)
     {
         data.insert(data.end(), drive.name.begin(), drive.name.end());
+        pushLong(data, drive.name.size());
         data.insert(data.end(), drive.location.begin(), drive.location.end());
+        pushLong(data, drive.location.size());
         pushLong(data, drive.size);
         pushLong(data, drive.used);
     }
+    pushLong(data, DriveCount);
 
     pushLong(data, identifierRev);
     return data;
@@ -78,8 +80,40 @@ std::vector<uint8_t> Status::serialise()
 
 void Status::deserialise(std::vector<uint8_t> data)
 {
-    if(popLong(data) != identifierRev)
+    uint64_t testData = popLong(data);
+    if(testData != identifierRev)
+    {
+        std::cout << std::hex << "popLong(data): " << testData  << " identifierRev: " << identifierRev << std::dec << "\r\n";
         return;
+    }
 
+    DriveCount = popLong(data);
+    Drives = std::vector<DriveUsage>(DriveCount, {"", "", 0, 0});
+    for(int i = DriveCount-1; i >= 0; i--)
+    {
+        Drives[i].used = popLong(data);
+        Drives[i].size = popLong(data);
+        uint64_t size = popLong(data);
+        Drives[i].location = std::string(data.end() - size, data.end());
+        data.resize(data.size() - size);
+        size = popLong(data);
+        Drives[i].name = std::string(data.end() - size, data.end());
+        data.resize(data.size() - size);
+    }
+    CoreCount = popLong(data);
+    CoreUsage.resize(CoreCount);
+    for(int i = CoreCount-1; i >= 0; i--)
+    {
+        CoreUsage[i] = popLong(data);
+    }
+    NetworkOut = popLong(data);
+    NetworkIn = popLong(data);
+    Uptime = popLong(data);
+    SwapFree = popLong(data);
+    SwapTotal = popLong(data);
+    MemFree = popLong(data);
+    MemTotal = popLong(data);
     
+    if(popLong(data) != identifier)
+        return;
 }

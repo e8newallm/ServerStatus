@@ -151,11 +151,10 @@ int main()
         }
         data.print();
         std::vector<uint8_t> test = data.serialise();
-        std::cout << "data: \r\n";
-        for(uint8_t byte : test)
-        {
-            std::cout << std::hex << std::setw(2) << std::setfill('0') << (uint16_t)byte << " ";
-        }
-        std::cout << std::dec << "\r\n\r\n";
+
+        Status result;
+        result.deserialise(test);
+        std::cout << "result: \r\n";
+        result.print();
     }
 }
