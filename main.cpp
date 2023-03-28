@@ -4,28 +4,19 @@
 #include <vector>
 #include <unistd.h>
 #include <fstream>
+#include <stdio.h>
+#include <cstdint>
+
+#include "status.h"
 
 std::ifstream file;
 std::string content;
 std::vector<std::string> lines;
 
-struct Status
-{
-    unsigned long MemTotal = 0; // kB
-    unsigned long MemFree = 0; // kB
-    unsigned long SwapTotal = 0; // kB
-    unsigned long SwapFree = 0; // kB
-    unsigned long Uptime = 0; // Seconds
-    unsigned long NetworkIn = 0; // Bytes
-    unsigned long NetworkOut = 0; // Bytes
-    unsigned long CoreCount = 0;
-    std::vector<unsigned long> CoreUsage; // Millipercent
-};
-
 struct CpuUsage
 {
-    unsigned long used;
-    unsigned long total;
+    uint64_t used;
+    uint64_t total;
 };
 
 std::vector<std::string> strToLines(std::string content)
@@ -51,7 +42,7 @@ std::vector<CpuUsage> getCoreUsage()
         if(!line.starts_with("cpu"))
             break;
 
-        unsigned long long int user, unice, usystem, idle, iowait, irq, softirq, guest;
+        uint64_t user, unice, usystem, idle, iowait, irq, softirq, guest;
         int nb_read = sscanf (line.c_str(), "%*s %llu %llu %llu %llu %llu %llu %llu %*u %llu",
                           &user, &unice, &usystem, &idle, &iowait, &irq, &softirq, &guest);
         if (nb_read <= 4) iowait = 0;
@@ -59,8 +50,8 @@ std::vector<CpuUsage> getCoreUsage()
         if (nb_read <= 6) softirq = 0;
         if (nb_read <= 7) guest = 0;
 
-        unsigned long used = user + unice + usystem + irq + softirq + guest;
-        unsigned long total = used + idle + iowait;
+        uint64_t used = user + unice + usystem + irq + softirq + guest;
+        uint64_t total = used + idle + iowait;
         values.push_back({used, total});
     }
     return values;
@@ -73,23 +64,8 @@ int main()
     data.CoreUsage.resize(prevCpuUsage.size());
     data.CoreCount = prevCpuUsage.size();
 
-    // current network usage
-    unsigned long prevIn = 0;
-    unsigned long prevOut = 0;
-    file.open("/proc/net/dev");
-    content.assign((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
-    file.close();
-    lines = strToLines(content);
-    lines.erase(lines.begin());
-    lines.erase(lines.begin());
-
-    for(std::string line : lines)
-    {
-        unsigned long in, out;
-        sscanf(line.c_str(), "%*s %lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %lld %*lld", &in, &out);
-        prevIn += in;
-        prevOut += out;
-    }
+    // previous network usage
+    uint64_t prevIn = 0, prevOut = 0;
     sleep(1);
 
     while(true)
@@ -136,10 +112,10 @@ int main()
         lines.erase(lines.begin());
         lines.erase(lines.begin());
 
-        unsigned long inBytes = 0, outBytes = 0;
+        uuint64_t inBytes = 0, outBytes = 0;
         for(std::string line : lines)
         {
-            unsigned long in, out;
+            uuint64_t in, out;
             sscanf(line.c_str(), "%*s %lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %lld %*lld", &in, &out);
             inBytes += in;
             outBytes += out;
@@ -151,6 +127,26 @@ int main()
         prevOut = outBytes;
 
         std::cout << "networkout: " << data.NetworkOut << " network in: " << data.NetworkIn << "\r\n";
+
+        // Drive usage
+
+        content = "";
+        char buffer[1024];
+        FILE* stream = popen("df | grep \"^/dev/\"", "r");
+        while (fgets(buffer, 1024, stream) != NULL)
+        {
+            content += buffer;
+        }
+        lines = strToLines(content);
+        for(std::string line : lines)
+        {
+            DriveUsage newPart;
+            char location[2048], name[2048];
+            sscanf(line.c_str(), "%s %lld %lld %*lld %*s %s", &location, &newPart.size, &newPart.used, &name);
+            newPart.location += location;
+            newPart.name += name;
+            //data.Drives.push_back(newPart);
+        }
 
         // Sleep
 
