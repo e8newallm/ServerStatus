@@ -65,8 +65,6 @@ std::vector<CpuUsage> getCoreUsage()
 
 int main()
 {
-    const uint16_t port = 10827;
-    const in_addr_t address = 0xC0A801FF;
     int sock;
     struct sockaddr_in adr{AF_INET, htons(port), htonl(address)};
 
@@ -173,7 +171,7 @@ int main()
         data.print();
         std::vector<uint8_t> serialData = data.serialise();
 
-        if(sendto(sock, serialData.data(), serialData.size()-1, 0, (struct sockaddr *)&adr, sizeof(adr)) != serialData.size()-1) 
+        if(sendto(sock, serialData.data(), serialData.size(), 0, (struct sockaddr *)&adr, sizeof(adr)) != serialData.size()) 
         {
             perror("Failed send");
             return 1;

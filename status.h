@@ -2,6 +2,9 @@
 #include <string>
 #include <cstdint>
 
+const uint16_t port = 10827;
+const uint64_t address = 0xC0A801FF;
+
 struct DriveUsage
 {
     std::string name;
