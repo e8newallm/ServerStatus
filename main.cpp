@@ -8,7 +8,12 @@
 #include <cstdint>
 #include <iomanip>
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "status.h"
+
 
 std::ifstream file;
 std::string content;
@@ -60,6 +65,22 @@ std::vector<CpuUsage> getCoreUsage()
 
 int main()
 {
+    const uint16_t port = 10827;
+    const in_addr_t address = 0xC0A801FF;
+    int sock;
+    struct sockaddr_in adr{AF_INET, htons(port), htonl(address)};
+
+    if((sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == 0)
+    {
+        perror("Failed socket setup");
+        return 1;
+    }
+
+    int broadcast=1;
+    setsockopt(sock, SOL_SOCKET, SO_BROADCAST,
+        &broadcast, sizeof broadcast);
+
+
     Status data;
     std::vector<CpuUsage> prevCpuUsage = getCoreUsage();
     data.CoreUsage.resize(prevCpuUsage.size());
@@ -150,11 +171,12 @@ int main()
             data.DriveCount++;
         }
         data.print();
-        std::vector<uint8_t> test = data.serialise();
+        std::vector<uint8_t> serialData = data.serialise();
 
-        Status result;
-        result.deserialise(test);
-        std::cout << "result: \r\n";
-        result.print();
+        if(sendto(sock, serialData.data(), serialData.size()-1, 0, (struct sockaddr *)&adr, sizeof(adr)) != serialData.size()-1) 
+        {
+            perror("Failed send");
+            return 1;
+        }
     }
 }
