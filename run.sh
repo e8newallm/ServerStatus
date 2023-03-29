@@ -1,7 +1,7 @@
 bin=$1
 if [ -z $1 ]
   then
-    bin="ServerStatus"
+    bin="serverstatus"
 fi
 
 ./build.sh

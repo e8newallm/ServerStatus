@@ -1,0 +1,8 @@
+[Unit]
+Description=Server status broadcasting
+
+[Service]
+ExecStart=/usr/local/bin/serverstatus
+
+[Install]
+WantedBy=multi-user.target
