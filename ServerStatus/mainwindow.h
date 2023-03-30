@@ -6,8 +6,13 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QUdpSocket>
 #include <QNetworkDatagram>
+#include <QBarSet>
+#include <QBarSeries>
+#include <QValueAxis>
 
 #include "../status.h"
+
+using namespace QtCharts;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -25,6 +30,8 @@ public:
 
     Status serverData;
 private:
+    QBarSeries* cpuUsage;
+
     QUdpSocket* sock;
     Ui::MainWindow *ui;
 };
