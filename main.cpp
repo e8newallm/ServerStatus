@@ -155,6 +155,7 @@ int main()
         {
             content += buffer;
         }
+        pclose(stream);
         lines = strToLines(content);
         data.DriveCount = 0;
         data.Drives.clear();
